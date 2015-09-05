@@ -1,0 +1,232 @@
+<!DOCTYPE html><html><head><link rel="stylesheet" href="shapefile.css" charset="utf-8"><script type="text/javascript" src="jquery-1.11.3.min.js"></script><script type="text/javascript" src="d3.min.js"></script><script type="text/javascript" src="csv.min.js"></script><script type="text/javascript" src="index.js"></script><script src="shp.min.js" charset="utf-8"></script></head><body><div id="container"><input type="file" id="files" name="files[]" single=""><select name="selectfile" id="selectfile" hidden="true"></select><input type="submit" id="upload" value="Draw Map" disabled="true"><div id="map"></div><div id="tooltip"></div></div><script type="text/javascript">
+      var decodedShapeFile;
+      var startTime;
+      var width;  // width of the map canvas
+      var height; // height of the map canvas
+      var projection;
+      var g;
+      var path;
+      var zoom;
+      var currentMap;
+
+      /*
+       * When a file is added by the user, check if the shape file contains several shape files in
+       * one zip file. If so, provide the user with a drop down list to select which shape file
+       * he wants to use
+       */
+      document.getElementById('files').addEventListener('change', function(evt) {
+        readShapeFile();
+      }, false);
+
+      // read the shape file and draw the map when the user clicks the Draw Map button
+      document.getElementById('upload').addEventListener('click', function(evt){
+        if(decodedShapeFile == null)
+          alert("Please select a file");
+        else{
+          var mapfile;
+          if($.isArray(decodedShapeFile)){
+            var i = parseInt(document.getElementById('selectfile').value);
+            drawMap(decodedShapeFile[i]);
+            mapfile = decodedShapeFile[i];
+            console.log(mapfile.fileName);
+            console.log(mapfile.features);
+            for(var key in mapfile.features) {
+              console.log(mapfile.features[key]['properties']['NAME_2']);
+            }
+          }
+          else {
+            drawMap(decodedShapeFile);
+            mapfile = decodedShapeFile;
+            console.log(mapfile.fileName);
+            console.log(mapfile.features);
+          }
+          currentMap = mapfile.fileName.charAt(mapfile.fileName.length - 1) - '0';
+        }
+
+      }, false);
+
+      function readShapeFile() {
+        var files = document.getElementById('files').files;
+        if (!files.length) {
+          alert('Please select a file!');
+          return;
+        }
+
+        var file = files[0];
+        reader = new FileReader();
+
+        // If we use onloadend, we need to check the readyState.
+        reader.onloadend = function(evt) {
+          if (evt.target.readyState == FileReader.DONE) { // DONE == 2
+            console.log("file passed on to the shape file reader");
+
+            // pass the shape file read, to the shapefile js library to convert it to geojson
+            shp(reader.result).then(function(geojson) {
+              var endTime = new Date().getTime();
+              console.log("file reading completed: "+((endTime - startTime)/1000.0)+" s elapsed");
+
+              reset(); // reset all the variables before drawing the new map
+
+              /*
+               * if the geojson object contains several maps, add a dropdown list to select
+               * the desired map to draw
+               */
+              if($.isArray(geojson)) {
+                  // drawMap(geojson[2]);
+                var selectfile = document.getElementById('selectfile');
+
+                for(var i=0; i<geojson.length; i++) {
+                  var option = document.createElement('option');
+                  option.value = i;
+                  option.innerHTML = geojson[i].fileName; // assign the file name of the shape file as the option name
+                  selectfile.appendChild(option);
+                }
+
+                selectfile.hidden = false; // display the dropdown list
+              }
+
+              decodedShapeFile = geojson;
+              document.getElementById('upload').disabled = false; // enable the draw map button
+            });
+          }
+        };
+
+        console.log("Starting to read the file");
+        startTime = new Date().getTime();
+        reader.readAsArrayBuffer(file);
+      }
+
+      function drawMap(json) {
+        console.log("Starting to draw");
+        startTime = new Date().getTime();
+
+        width  = $(window).width() - 17;
+        height = $(window).height();
+
+        tip = d3.tip().attr('class', 'd3-tip')
+                        .html(function(d) {
+                           if(currentMap == 0)
+                              return d.properties["NAME_ISO"];
+                           else
+                              return d.properties["NAME_"+currentMap];
+                        });
+
+        var map = d3.select("#map").select("svg").remove();
+
+        map = d3.select("#map").append("svg")
+                                    .attr("width", width)
+                                    .attr("height", height);
+
+        // Create a unit projection.
+        projection = d3.geo.mercator()
+                            .scale(1)
+                            .translate([0, 0]);
+
+        // Create a path generator.
+        path = d3.geo.path().projection(projection);
+        placeToolTip = function(d) {
+                     var bbox = path.bounds(d);
+                     var centroid = path.centroid(d);
+                     //   console.log("bounding box: " + bbox);
+                     //   console.log("centroid: " + centroid);
+                     //   console.log(centroid[1]+", "+centroid[0]+", "+(bbox[1][0] - bbox[0][0])+", "+(bbox[1][1] - bbox[0][1]));
+                     var node = d3.select(d);
+                     console.log(node);
+                     var width = bbox[1][0] - bbox[0][0];
+                     var height = bbox[1][1] - bbox[0][1];
+
+                     var voffset = (centroid[1] - bbox[0][1]);
+                     var hoffset = (centroid[0] - bbox[0][0]) - width/2;
+                     return [voffset, hoffset]
+                  };
+
+        tip.offset(placeToolTip);
+
+        // Compute the bounds of a feature of interest, then derive scale & translate.
+        var b = path.bounds(json),
+            s = 0.95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
+            t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
+
+        // Update the projection to use computed scale & translate.
+        projection.scale(s)
+                  .translate(t);
+
+        var zoom = d3.behavior.zoom()
+                              .translate([0, 0])
+                              .scale(1)
+                              .scaleExtent([.5, 15])
+                              .on("zoom", zoomed);
+
+
+        g = map.append("g");
+
+      //   hover = function(d) {
+      //       var bbox = path.bounds(d);
+      //       var centroid = path.centroid(d);
+        //
+      //       var div = document.getElementById('tooltip');
+        //
+      //       div.style.left = centroid[0] +'px';
+      //       div.style.top = centroid[1] + 'px';
+        //
+      //       div.innerHTML = d.properties.NAME_1;
+      //       console.log(d.properties.NAME_1);
+      //   };
+
+        map.call(zoom);
+        g.call(tip);
+
+        g.selectAll("path").data(json.features).enter().append("path")
+                 .attr("d", path)
+                 .attr("class", function(d){ return "subunit "+d.properties.NAME_1;} )
+                 .style("fill", function(d) { return "#"+((1<<24)*Math.random()|0).toString(16); } )
+                 .style("stroke-width", "1")
+                 .style("stroke", "black")
+                 .style("vector-effect","non-scaling-stroke")
+                //  .on("click",clicked);
+                //  .text(function(d) { return d.properties.NAME_1; });;
+                 .on("mouseover", tip.show)
+                 .on("mouseout", tip.hide);
+               //  .on("mouseover",hover);
+
+         var endTime = new Date().getTime();
+         console.log("drawing complete: "+((endTime - startTime)/1000.0)+" s elapsed");
+
+       }
+
+       // function for handling the zooming when clicked on a place on the map
+       function clicked(d) {
+          var centroid = path.centroid(d),
+              translate = projection.translate();
+
+          projection.translate([
+            translate[0] - centroid[0] + width / 2,
+            translate[1] - centroid[1] + height / 2
+          ]);
+
+          zoom.translate(projection.translate());
+
+          g.selectAll("path").transition()
+              .duration(700)
+              .attr("d", path);
+        }
+
+        // function for handling the zooming
+        function zoomed() {
+          // projection.translate(d3.event.translate).scale(d3.event.scale);
+          // g.selectAll("path").attr("d", path);
+          g.attr("transform", "translate("+ d3.event.translate + ")scale(" + d3.event.scale + ")");
+          console.log("zoomed");
+        }
+
+        function reset() {
+          decodedShapeFile = null;
+          projection = null;
+          g = null;
+          path = null;
+          zoom = null;
+
+          d3.select("#selectfile").selectAll("option").remove();
+          document.getElementById("selectfile").hidden = true;
+        }
+     </script></body></html>
