@@ -1,0 +1,75 @@
+html, body, svg, rect { margin: 0; padding: 0; border: 0;}
+#container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background-color: yellow;
+}
+#map {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  background-color: #B0D3FF;
+  border: 0;
+  cursor: pointer;
+}
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+#tooltip{
+  position: absolute;
+  z-index: 2;
+  background: rgba(0,153,76,0.8);
+  width:130px;
+  height:20px;
+  color:white;
+  font-size: 14px;
+  padding:5px;
+  top:-150px;
+  left:-150px;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light",
+  "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+.d3-tip {
+  line-height: 1;
+  /*font-weight: bold;*/
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  font-size: 8pt;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light",
+  "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+.remove-padding {
+  padding: 0;
+}
+
+.left-padding {
+  padding-left: 20px;
+  padding-right: 20px;
+}
