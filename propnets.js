@@ -17,19 +17,24 @@ var PropNets = (function() {
 
   /* variables representing data related to the visualizations */
 
-  /* This variable holds the parsed CSV file containing the flow data and the status
+  /*
+   * This variable holds the parsed CSV file containing the flow data and the status
    * updates. Any flow data required can and should be accessed through this.
    */
   var flowdata;
 
-  /* This variable holds the parsed CSV file containing the network data
+  /*
+   * This variable holds the parsed CSV file containing the network data
    * This only holds details related to the nodes used in the network and the
    * weights of the edges connecting them.
    */
   var csvdata;
+  var networklayout = {};
+  var maxweight, minweight;
 
   /* MAP COLOURS */
   var basecolour = '#f7d1ad';
+  var colourgradient = ['rgb(255,245,240)', 'rgb(254,224,210)', 'rgb(252,187,161)', 'rgb(252,146,114)', 'rgb(251,106,74)', 'rgb(239,59,44)', 'rgb(203,24,29)', 'rgb(165,15,21)', 'rgb(103,0,13)'];
 
   MOD.setData = function(data) {
     flowdata = data;
@@ -47,11 +52,13 @@ var PropNets = (function() {
     selectfileDOM = document.getElementById(s);
 
     filesDOM.addEventListener('change', function(evt) {
+      // document.getElementById('upload').disabled = false; // enable the draw map button
       readShapeFile();
     }, false);
 
     // read the shape file and draw the map when the user clicks the Draw Map button
     uploadDOM.addEventListener('click', function(evt) {
+      // readShapeFile();
       if (decodedShapeFile == null)
         alert('Please select a file');
       else {
@@ -64,9 +71,9 @@ var PropNets = (function() {
           console.log(mapfile.fileName);
           console.log(mapfile.features);
 
-          for (var key in mapfile.features) {
-            console.log(mapfile.features[key]['properties']['NAME_2']);
-          }
+          // for (var key in mapfile.features) {
+          //   console.log(mapfile.features[key]['properties']['NAME_2']);
+          // }
         } else {
           drawMap(decodedShapeFile);
           mapfile = decodedShapeFile;
@@ -80,9 +87,12 @@ var PropNets = (function() {
   };
 
   function readShapeFile() {
-    var files = filesDOM.files;
+    // var files = filesDOM.files;
+    var files = document.getElementById('files');
+    console.log(filesDOM.files);
+    console.log(filesDOM.files[0]);
 
-    if (!files.length) {
+    if (filesDOM.files.length <= 0) {
       alert('Please select a file!');
       return;
     }
@@ -91,10 +101,10 @@ var PropNets = (function() {
     var reader = new FileReader();
 
     // If we use onloadend, we need to check the readyState.
-    reader.onloadend = function(evt) {
-      if (evt.target.readyState === FileReader.DONE) { // DONE == 2
+    reader.onload = function(evt) {
+      // if (evt.target.readyState === FileReader.DONE) { // DONE == 2
         console.log('file passed on to the shape file reader');
-
+        console.log(evt.target);
         // pass the shape file read, to the shapefile js library to convert it to geojson
         shp(reader.result).then(function(geojson) {
           var endTime = new Date().getTime();
@@ -123,12 +133,12 @@ var PropNets = (function() {
           decodedShapeFile = geojson;
           document.getElementById('upload').disabled = false; // enable the draw map button
         });
-      }
+      // }
     };
 
     console.log('Starting to read the file');
     startTime = new Date().getTime();
-    reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(filesDOM.files[0]);
   }
 
   // --------------------        DRAW MAP FUNCTION           --------------------------
@@ -249,6 +259,9 @@ var PropNets = (function() {
     var baseTime = Date.parse(flowdata[0].timestamp); // timestamp of the first record
     var maxTime = Date.parse(flowdata[flowdata.length - 1].timestamp); // timestamp of the last record
 
+    maxweight = getMaxWeight(); // retrieve the maximum weight in the network before using it
+    var gradientUnitSize = maxweight / colourgradient.length; // divide the range of weights in to the number of colours in the gradient
+
     for (var i = 0; i < flowdata.length; i++) {
       var relativeTime = Date.parse(flowdata[i].timestamp) - baseTime;
       var src = getDatumByName(flowdata[i].source);
@@ -256,31 +269,33 @@ var PropNets = (function() {
 
       connectLocations(src, dest, relativeTime / (maxTime - baseTime) * 30000);
       if (flowdata[i].source_infected.toLowerCase() == 'true') {
-        // src.style('fill', 'red');
+        var colour = getColour(getWeight(flowdata[i].source, flowdata[i].destination), gradientUnitSize);
+        console.log(colour);
         d3.select('[name=\"' + flowdata[i].source.toLowerCase() + '\"]')
-            .transition()
-            .duration(500)
-            .delay(relativeTime / (maxTime - baseTime) * 30000)
-            .ease('linear')
-            .style('fill', 'red');
+          .transition()
+          .duration(500)
+          .delay(relativeTime / (maxTime - baseTime) * 30000)
+          .ease('linear')
+          .style('fill', colour);
         // console.log("inside infected: " + '[name=\"' + flowdata[i].source.toLowerCase() + '\"]');
       }
 
       if (flowdata[i].destination_infected.toLowerCase() == 'true') {
         d3.select('[name=\"' + flowdata[i].destination.toLowerCase() + '\"]')
-            .transition()
-            .duration(500)
-            .delay(relativeTime / (maxTime - baseTime) * 30000)
-            .ease('linear')
-            .style('fill', basecolour);
+          .transition()
+          .duration(500)
+          .delay(relativeTime / (maxTime - baseTime) * 30000)
+          .ease('linear')
+          .style('fill', basecolour);
       }
       // console.log(flowdata[i].source.toLowerCase() + ' ' + flowdata[i].destination.toLowerCase());
+      console.log(flowdata[i].source + ' to ' + flowdata[i].destination + ': ' + getWeight(flowdata[i].source, flowdata[i].destination));
     }
   };
 
-  function connectLocations(name1, name2, delay) {
-    var centroid1 = path.centroid(name1);
-    var centroid2 = path.centroid(name2);
+  function connectLocations(src, dest, delay) {
+    var centroid1 = path.centroid(src);
+    var centroid2 = path.centroid(dest);
 
     var connector = g.append('line')
       .style('stroke', 'blue')
@@ -297,7 +312,7 @@ var PropNets = (function() {
       .on('mouseout', function() {
         var line = d3.select(this);
         line.style('stroke', 'blue')
-          .style('stroke-width', '1px');
+          .style('stroke-width', '3px');
       });
 
     // console.log(connector);
@@ -307,13 +322,16 @@ var PropNets = (function() {
     // console.log('total line length: ' + totalLength);
 
     connector
-      .attr('stroke-dasharray', totalLength + ' ' + totalLength)
-      .attr('stroke-dashoffset', totalLength)
+      .attr('stroke-dasharray', 50 + ' ' + totalLength)
+      .attr('stroke-dashoffset', (totalLength + 100))
       .transition()
       .duration(5000)
       .delay(delay)
+      .attr('stroke-dashoffset', (totalLength + 100))
       .ease('linear')
-      .attr('stroke-dashoffset', 0);
+      .attr('stroke-dashoffset', -totalLength);
+    // .transition()
+    // .attr('stroke-dashoffset', -totalLength);
 
     // svg.on("click", function(){
     //   path
@@ -321,46 +339,6 @@ var PropNets = (function() {
     //     .duration(2000)
     //     .ease("linear")
     //     .attr("stroke-dashoffset", totalLength);
-  }
-
-  function getDatumByName(name) {
-    var item = d3.select('[name=\"' + name.toLowerCase() + '\"]').datum();
-    return item;
-  }
-  // function for handling the zooming when clicked on a place on the map
-  // function clicked(d) {
-  //   var centroid = path.centroid(d),
-  //     translate = projection.translate();
-  //
-  //   projection.translate([
-  //     translate[0] - centroid[0] + width / 2,
-  //     translate[1] - centroid[1] + height / 2
-  //   ]);
-  //
-  //   zoom.translate(projection.translate());
-  //
-  //   g.selectAll('path').transition()
-  //     .duration(700)
-  //     .attr('d', path);
-  // }
-
-  // function for handling the zooming
-  function zoomed() {
-    // projection.translate(d3.event.translate).scale(d3.event.scale);
-    // g.selectAll("path").attr("d", path);
-    g.attr('transform', 'translate(' + d3.event.translate + ')scale(' + d3.event.scale + ')');
-    console.log('zoomed');
-  }
-
-  function reset() {
-    decodedShapeFile = null;
-    projection = null;
-    g = null;
-    path = null;
-    zoom = null;
-
-    d3.select('#selectfile').selectAll('option').remove();
-    document.getElementById('selectfile').hidden = true;
   }
 
   // DATA VISUALIZATION PART
@@ -382,11 +360,16 @@ var PropNets = (function() {
       if (evt.target.readyState == FileReader.DONE) { // DONE == 2
         var filetype = file.name.toLowerCase().split('.').pop();
         var temp = d3.csv.parse(evt.target.result);
-        console.log(temp);
 
-        if (temp[0].length == 3)
+        if (Object.keys(temp[0]).length == 3) {
           csvdata = temp;
-        else {
+
+          for (var i = 0; i < csvdata.length; i++) {
+            var key = csvdata[i].location1.toLowerCase() + ':' + csvdata[i].location2.toLowerCase();
+            networklayout[key] = csvdata[i].weight;
+          }
+          console.log(networklayout);
+        } else {
           flowdata = temp;
         }
       }
@@ -395,7 +378,68 @@ var PropNets = (function() {
     reader.readAsBinaryString(file);
   };
 
+  // UTILITY FUNCTIONS
+  function getWeight(loc1, loc2) {
+    loc1 = loc1.toLowerCase();
+    loc2 = loc2.toLowerCase();
+    var val = (networklayout[loc1 + ':' + loc2] || networklayout[loc2 + ':' + loc1]);
+    // console.log(val);
 
+    // remove this later!
+    if (isNaN(val))
+      return parseInt(Math.random() * 1000);
+
+    return val;
+  }
+
+  function getDatumByName(name) {
+    var item = d3.select('[name=\"' + name.toLowerCase() + '\"]').datum();
+    return item;
+  }
+
+  // function for handling the zooming
+  function zoomed() {
+    // projection.translate(d3.event.translate).scale(d3.event.scale);
+    // g.selectAll("path").attr("d", path);
+    g.attr('transform', 'translate(' + d3.event.translate + ')scale(' + d3.event.scale + ')');
+    console.log('zoomed');
+  }
+
+  // function for resetting the map canvas
+  function reset() {
+    decodedShapeFile = null;
+    projection = null;
+    g = null;
+    path = null;
+    zoom = null;
+
+    d3.select('#selectfile').selectAll('option').remove();
+    document.getElementById('selectfile').hidden = true;
+  }
+
+  function getColour(weight, unit) {
+    var index = parseInt(weight / unit);
+    console.log('index: ' + index + ' ' + weight + ' ' + unit);
+    if (index > (colourgradient.length - 1))
+      index = colourgradient.length - 1;
+
+    return colourgradient[index];
+  }
+
+  function getMaxWeight() {
+    if (networklayout == null)
+      return -1;
+
+    var max = -1;
+
+    for (var key in networklayout) {
+      console.log(networklayout[key]);
+      if (networklayout[key] > max)
+        max = networklayout[key];
+    }
+    console.log('max: ' + max);
+    return max;
+  }
 
   return MOD;
 }());
