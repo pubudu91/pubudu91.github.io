@@ -1,5 +1,181 @@
-<!doctype html><html><head><title>PropNets Visualizer</title><meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes"><script src="../bower_components/webcomponentsjs/webcomponents.js">
-    </script><link rel="import" href="../bower_components/font-roboto/roboto.html"><link rel="import" href="../bower_components/paper-header-panel/paper-header-panel.html"><link rel="import" href="../bower_components/iron-icons/iron-icons.html"><link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html"><link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html"><link rel="import" href="../bower_components/paper-tabs/paper-tabs.html"><link rel="import" href="../bower_components/paper-drawer-panel/paper-drawer-panel.html"><link rel="import" href="../bower_components/paper-button/paper-button.html"><link rel="import" href="../bower_components/iron-pages/iron-pages.html"><link rel="import" href="../bower_components/paper-button/paper-button.html"><link rel="import" href="../bower_components/google-map/google-map.html"><link rel="stylesheet" href="styles/shapefile.css" charset="utf-8"><script type="text/javascript" src="scripts/jquery-1.11.3.min.js"></script><script type="text/javascript" src="scripts/d3.min.js"></script><script type="text/javascript" src="scripts/csv.min.js"></script><script type="text/javascript" src="scripts/index.js"></script><script src="scripts/shp.min.js" charset="utf-8"></script><script src="scripts/colourbrewer.js" charset="utf-8"></script><script src="propnets.js" charset="utf-8"></script><script src="scripts/fileupload.js" charset="utf-8"></script></head><body unresolved=""><paper-drawer-panel id="drawerPanel" force-narrow="" drawer-width="30em" disable-swipe=""><paper-header-panel drawer="" id="drawer"><paper-toolbar><paper-icon-button icon="arrow-back" id="toggleBack"></paper-icon-button><span class="title">Menu</span><div style="text-align: center; float: right;"><paper-button raised="" id="visualizebtn"><paper-icon-button icon="check" class="remove-padding"></paper-icon-button>Visualize</paper-button></div></paper-toolbar><paper-tabs selected="{{selected}}"><paper-tab name="tab1">Data Files</paper-tab><paper-tab name="tab2">Visualization Options</paper-tab></paper-tabs><iron-pages selected="0"><div class="left-padding"><div><h4>Upload Shape files:</h4><input type="file" id="files" name="files[]" single="" hidden="true" accept=".zip"><paper-icon-button icon="file-upload" id="mapuploadbtn"></paper-icon-button><output id="mapfilename"></output><select name="selectfile" id="selectfile" hidden="true"></select><paper-icon-button icon="send" id="drawmap" hidden="true"></paper-icon-button><br><span>Select naming scheme:<select id="selectnamingscheme"></select></span></div><hr><div><h4>Upload network data:</h4><input type="file" id="csvnetwork" name="files[]" hidden="true" single="" accept=".csv"><paper-icon-button icon="file-upload" id="csvuploadbtn"></paper-icon-button><output id="networkfilename"></output><paper-icon-button icon="send" id="parsenetwork" hidden="true"></paper-icon-button></div><hr><div><h4>Upload network flow data:</h4><input type="file" id="csvfiles" name="files[]" hidden="true" single="" accept=".csv"><paper-icon-button icon="file-upload" id="flowuploadbtn"></paper-icon-button><output id="flowfilename"></output><paper-icon-button icon="send" id="parse" hidden="true"></paper-icon-button></div></div><div class="left-padding"><div id="coloursoptions"><h4>Colour &amp; Stroke Options:</h4><div class="height-30">Set base colour of the map: <input type="color" id="basecolourpicker" value="" class="float-right"></div><div class="height-30">Set the colour of the propagating line segments: <input type="color" id="linesegmentcolourpicker" value="" class="float-right"></div><div id="gradientsamples"><p style="text-align: left;">Select gradient:</p></div></div><div id="strokeoptions"><h4>Stroke Options</h4><div>Width of line segments (px): <input type="range" id="strokewidthslider" value="2" min="1" max="5" oninput="strokewidthvalue.value = parseInt(strokewidthslider.value)"><output id="strokewidthvalue">2</output></div><div>Length of line segments (px): <input type="range" id="strokelengthslider" value="50" min="5" max="300" oninput="strokelengthvalue.value = parseInt(strokelengthslider.value)"><output id="strokelengthvalue">50</output></div><div>Use maximum length: <input type="checkbox" id="maxlengthcheck"></div></div><div id="animationoptions"><h4>Animation Options:</h4><div>Total duration (s): <input type="range" id="totaldurationslider" value="30" min="5" max="600" oninput="durationvalue.value = parseInt(totaldurationslider.value)"><output id="durationvalue">30</output></div><div>Duration of a single segment (s): <input type="range" id="segmentdurationslider" value="5" min="0.1" max="15" oninput="segmentdurationvalue.value = parseInt(segmentdurationslider.value)"><output id="segmentdurationvalue">5</output></div></div><div id="overlayoptions"><h4>Overlay Options:</h4><div>Enable Google Map overlay: <input type="checkbox" id="enablegmap" value=""></div><div>Opacity: <input type="range" id="opacity" value="75" min="0" max="100" oninput="opacityvalue.value = opacity.value"><output id="opacityvalue">75</output></div></div></div></iron-pages></paper-header-panel><paper-header-panel main=""><paper-toolbar id="header"><paper-icon-button icon="menu" id="toggleMenu"></paper-icon-button><span class="title" id="maintitle">PropNets Visualizer</span><paper-icon-button icon="refresh" id="refresh"></paper-icon-button></paper-toolbar><div id="container"><google-map id="gmap" hidden="true"></google-map><div id="mainmap"></div><div id="tooltip"></div></div></paper-header-panel></paper-drawer-panel><script>
+<!doctype html>
+<html>
+
+  <head>
+
+    <title>PropNets Visualizer</title>
+
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../bower_components/webcomponentsjs/webcomponents.js">
+    </script>
+
+    <link rel="import" href="../bower_components/font-roboto/roboto.html">
+
+    <link rel="import" href="../bower_components/paper-header-panel/paper-header-panel.html">
+    <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+    <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
+    <link rel="import" href="../bower_components/paper-tabs/paper-tabs.html">
+    <link rel="import" href="../bower_components/paper-drawer-panel/paper-drawer-panel.html">
+    <link rel="import" href="../bower_components/paper-button/paper-button.html">
+    <link rel="import" href="../bower_components/iron-pages/iron-pages.html">
+    <link rel="import" href="../bower_components/paper-button/paper-button.html">
+    <link rel="import" href="../bower_components/google-map/google-map.html">
+    <!-- <link rel="import" href="shapetest/shapefile.html"> -->
+
+    <link rel="stylesheet" href="styles/shapefile.css" charset="utf-8">
+    <script type="text/javascript" src="scripts/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="scripts/d3.min.js"></script>
+    <script type="text/javascript" src="scripts/csv.min.js"></script>
+    <script type="text/javascript" src="scripts/index.js"></script>
+    <!-- d3-tip -->
+    <script src="scripts/shp.min.js" charset="utf-8"></script>
+    <script src="scripts/colourbrewer.js" charset="utf-8"></script>
+    <script src="propnets.js" charset="utf-8"></script>
+    <script src="scripts/fileupload.js" charset="utf-8"></script>
+  </head>
+
+  <body unresolved>
+    <paper-drawer-panel id="drawerPanel" force-narrow drawer-width="30em" disable-swipe>
+      <paper-header-panel drawer id="drawer">
+
+        <paper-toolbar>
+          <paper-icon-button icon="arrow-back" id="toggleBack"></paper-icon-button>
+          <span class="title" id="menutitle">Menu</span>
+          <div style="text-align: center; float: right;">
+            <paper-button raised id="visualizebtn">
+              <paper-icon-button icon="check" class="remove-padding"></paper-icon-button>
+              Visualize
+            </paper-button>
+          </div>
+        </paper-toolbar>
+
+        <paper-tabs selected="{{selected}}">
+          <paper-tab name="tab1">Data Files</paper-tab>
+          <paper-tab name="tab2">Visualization Options</paper-tab>
+        </paper-tabs>
+
+        <iron-pages selected="0">
+          <!-- TAB #1 -->
+          <div class="left-padding">
+            <div>
+              <h4>Upload Shape files:</h4>
+              <input type="file" id="files" name="files[]" single hidden="true" accept=".zip" />
+              <!-- <input type="submit" id="upload" value="Draw Map" disabled="true" /> -->
+              <paper-icon-button icon="file-upload" id="mapuploadbtn"></paper-icon-button>
+              <output id="mapfilename"></output>
+              <select name="selectfile" id="selectfile" hidden="true"></select>
+              <paper-icon-button icon="send" id="drawmap" hidden="true"></paper-icon-button>
+              <br>
+              <span>Select naming scheme:
+                <select id="selectnamingscheme"></select>
+              </span>
+            </div>
+            <hr>
+            <div>
+              <h4>Upload network data:</h4>
+              <input type="file" id="csvnetwork" name="files[]" hidden="true" single accept=".csv" />
+              <paper-icon-button icon="file-upload" id="csvuploadbtn"></paper-icon-button>
+              <output id="networkfilename"></output>
+              <paper-icon-button icon="send" id="parsenetwork" hidden="true"></paper-icon-button>
+            </div>
+            <hr>
+            <div>
+              <h4>Upload network flow data:</h4>
+              <input type="file" id="csvfiles" name="files[]" hidden="true" single accept=".csv" />
+              <paper-icon-button icon="file-upload" id="flowuploadbtn"></paper-icon-button>
+              <output id="flowfilename"></output>
+              <paper-icon-button icon="send" id="parse" hidden="true">
+            </div>
+          </div>
+
+          <!-- TAB #2 -->
+          <div class="left-padding">
+            <div id="coloursoptions">
+              <h4>Colour &amp; Stroke Options:</h4>
+              <div class="height-30">Set base colour of the map:
+                <input type="color" id="basecolourpicker" value="" class="float-right">
+              </div>
+              <div class="height-30">Set the colour of the propagating line segments:
+                <input type="color" id="linesegmentcolourpicker" value="" class="float-right">
+              </div>
+              <div id="gradientsamples">
+                <p style="text-align: left;">Select gradient:</p>
+              </div>
+            </div>
+
+            <div id="strokeoptions">
+              <h4>Stroke Options</h4>
+              <div>
+                Width of line segments (px):
+                <input type="range" id="strokewidthslider" value="2" min="1" max="5" oninput="strokewidthvalue.value = parseInt(strokewidthslider.value)">
+                <output id="strokewidthvalue">2</output>
+              </div>
+              <div>
+                Length of line segments (px):
+                <input type="range" id="strokelengthslider" value="50" min="5" max="300" oninput="strokelengthvalue.value = parseInt(strokelengthslider.value)">
+                <output id="strokelengthvalue">50</output>
+              </div>
+              <div>
+                Use maximum length:
+                <input type="checkbox" id="maxlengthcheck">
+              </div>
+            </div>
+
+            <div id="animationoptions">
+              <h4>Animation Options:</h4>
+              <div>
+                Total duration (s):
+                <input type="range" id="totaldurationslider" value="30" min="5" max="600" oninput="durationvalue.value = parseInt(totaldurationslider.value)">
+                <output id="durationvalue">30</output>
+              </div>
+
+              <div>
+                Duration of a single segment (s):
+                <input type="range" id="segmentdurationslider" value="5" min="0.1" max="15" oninput="segmentdurationvalue.value = parseInt(segmentdurationslider.value)">
+                <output id="segmentdurationvalue">5</output>
+              </div>
+            </div>
+
+            <div id="overlayoptions">
+              <h4>Overlay Options:</h4>
+              <div>
+                Enable Google Map overlay:
+                <input type="checkbox" id="enablegmap" value="">
+              </div>
+              <div>
+                Opacity:
+                <input type="range" id="opacity" value="75" min="0" max="100" oninput="opacityvalue.value = opacity.value">
+                <output id="opacityvalue">75</output>
+              </div>
+            </div>
+          </div>
+        </iron-pages>
+
+      </paper-header-panel>
+
+      <!-- MAIN CONTENT AREA -->
+      <paper-header-panel main>
+
+        <paper-toolbar id="header">
+          <paper-icon-button icon="menu" id="toggleMenu"></paper-icon-button>
+          <span class="title" id="maintitle">PropNets Visualizer</span>
+          <paper-icon-button icon="refresh" id="refresh"></paper-icon-button>
+          <!-- <paper-icon-button icon="add">+</paper-icon-button> -->
+        </paper-toolbar>
+
+        <div id="container">
+          <google-map id="gmap" hidden="true"></google-map>
+          <div id="mainmap"></div>
+          <div id="tooltip"></div>
+        </div>
+
+      </paper-header-panel>
+
+    </paper-drawer-panel>
+
+    <script>
       var menu = document.getElementById('toggleMenu');
       var back = document.getElementById('toggleBack');
       var drawerPanel = document.getElementById('drawerPanel');
@@ -88,7 +264,9 @@
         var pages = document.querySelector('iron-pages');
         pages.select(this.selected);
       });
-    </script><script type="text/javascript">
+    </script>
+
+    <script type="text/javascript">
       PropNets.init('files', 'drawmap', 'selectfile');
 
       document.getElementById('parsenetwork').addEventListener('click', function() {
@@ -113,7 +291,7 @@
           return d.key;
         })
         .on("click", function(d) {
-          console.log(d3.values(d.value).map(JSON.stringify).join("\n"));
+          // console.log(d3.values(d.value).map(JSON.stringify).join("\n"));
           PropNets.changeColourGradient(d);
         })
         .selectAll(".swatch")
@@ -127,4 +305,7 @@
         });
 
       PropNets.refresh('refresh');
-    </script></body></html>
+    </script>
+  </body>
+
+</html>

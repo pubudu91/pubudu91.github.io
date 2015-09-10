@@ -581,7 +581,7 @@ var PropNets = (function(d3) {
 
   MOD.changeColourGradient = function changeColourGradient(d) {
     colourgradient = d.value[9];
-    console.log(d.value[9]);
+    // console.log(d.value[9]);
   }
 
   MOD.changeLineSegmentColour = function changeLineSegmentColour(evt) {
