@@ -1,1 +1,157 @@
-#container,body,html,rect,svg{margin:0;padding:0;border:0}#networkfilename,#tooltip,body,html{font-size:14px}#mainmap,#tooltip,.d3-tip:after{position:absolute}#gradientsamples,#visualizebtn,.d3-tip:after{text-align:center}body,html{margin:0;background-color:#B3D1FF;font-family:RobotoDraft,sans-serif}#tooltip,.d3-tip{color:#fff;font-family:HelveticaNeue-Light,"Helvetica Neue Light","Helvetica Neue",Helvetica,Arial,"Lucida Grande",sans-serif}#visualizebtn{background:#06951d;color:#fff}#mainmap{left:0;top:0}google-map{height:600px}#container{width:100%;background-color:#ff0}.overlay{fill:none;pointer-events:all}#tooltip{z-index:2;background:rgba(0,153,76,.8);width:130px;height:20px;padding:5px;top:-150px;left:-150px}.d3-tip{line-height:1;padding:12px;background:rgba(0,0,0,.8);border-radius:2px;font-size:8pt}.d3-tip:after{box-sizing:border-box;display:inline;font-size:10px;width:100%;line-height:1;color:rgba(0,0,0,.8);content:"\25BC"}.d3-tip.n:after{margin:-1px 0 0;top:100%;left:0}.remove-padding{padding:0}.left-padding{padding-left:20px;padding-right:20px}.SvgOverlay{position:relative;width:500px;height:500px}.SvgOverlay svg{position:absolute;top:-4000px;left:-4000px;width:8000px;height:8000px}.SvgOverlay path{stroke:Orange;stroke-width:2px;fill:Orange;fill-opacity:.3}.palette{cursor:pointer;display:inline-block;vertical-align:bottom;padding-right:5px;background:#fff}.swatch{display:block;vertical-align:middle;width:10px;height:10px}#drawer{padding-bottom:30px}
+html, body, svg, rect {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+html,
+body {
+  margin: 0;
+  background-color: #B3D1FF;
+  font-family: 'RobotoDraft', sans-serif;
+  font-size: 14px;
+}
+
+#networkfilename {
+  font-size: 14px;
+}
+
+#visualizebtn {
+  /*width: 150px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  padding-bottom: 5px;*/
+  text-align: center;
+  /*background: rgb(25, 92, 193);*/
+  background: rgb(6, 149, 29);
+  color: #fff;
+}
+
+#mainmap {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+google-map {
+  height: 600px;
+}
+
+#container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background-color: yellow;
+}
+
+/*#mainmap {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  background-color: #B3D1FF;/*#B0D3FF;
+  border: 0;
+  cursor: pointer;
+}*/
+
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+#tooltip {
+  position: absolute;
+  z-index: 2;
+  background: rgba(0, 153, 76, 0.8);
+  width: 130px;
+  height: 20px;
+  color: white;
+  font-size: 14px;
+  padding: 5px;
+  top: -150px;
+  left: -150px;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+.d3-tip {
+  line-height: 1;
+  /*font-weight: bold;*/
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  font-size: 8pt;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+/* Creates a small triangle extender for the tooltip */
+
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+.remove-padding {
+  padding: 0;
+}
+.left-padding {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.SvgOverlay {
+  position: relative;
+  width: 500px;
+  height: 500px;
+}
+.SvgOverlay svg {
+  position: absolute;
+  top: -4000px;
+  left: -4000px;
+  width: 8000px;
+  height: 8000px;
+}
+.SvgOverlay path {
+  stroke: Orange;
+  stroke-width: 2px;
+  fill: Orange;
+  fill-opacity: .3;
+}
+
+#gradientsamples {
+  text-align: center;
+}
+
+.palette {
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: bottom;
+  /*margin: 4px 0 4px 6px;*/
+  /*padding: 4px;*/
+  padding-right: 5px;
+  background: #fff;
+  /*border: solid 1px #aaa;*/
+}
+
+.swatch {
+  display: block;
+  vertical-align: middle;
+  width: 10px;
+  height: 10px;
+}
+
+#drawer {
+  padding-bottom: 30px;
+}
