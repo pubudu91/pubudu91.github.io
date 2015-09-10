@@ -547,6 +547,20 @@ var PropNets = (function(d3) {
     return max;
   }
 
+  MOD.getMaxWeight = function getMax(layout) {
+    if (layout == null)
+      return -1;
+
+    var max = -1;
+
+    for (var key in layout) {
+      // console.log(layout[key]);
+      if (layout[key] > max)
+        max = layout[key];
+    }
+    return max;
+  }
+
   MOD.refresh = function(id) {
     if (!id)
       return;
