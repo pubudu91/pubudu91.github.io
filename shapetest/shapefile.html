@@ -1,23 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <link rel="stylesheet" href="shapefile.css" charset="utf-8">
-    <script type="text/javascript" src="jquery-1.11.3.min.js"></script>
-    <script type="text/javascript" src="d3.min.js"></script>
-    <script type="text/javascript" src="csv.min.js"></script>
-    <script type="text/javascript" src="index.js"></script> <!-- d3-tip -->
-    <script src="shp.min.js" charset="utf-8"></script>
-  </head>
-
-  <body>
-    <div id="container">
-      <input type="file" id="files" name="files[]" single />
-      <select name="selectfile" id="selectfile" hidden="true"></select>
-      <input type="submit" id="upload" value="Draw Map" disabled="true"/>
-      <div id="map"></div>
-      <div id="tooltip"></div>
-    </div>
-    <script type="text/javascript">
+<!DOCTYPE html><html><head><link rel="stylesheet" href="shapefile.css" charset="utf-8"><script type="text/javascript" src="jquery-1.11.3.min.js"></script><script type="text/javascript" src="d3.min.js"></script><script type="text/javascript" src="csv.min.js"></script><script type="text/javascript" src="index.js"></script><script src="shp.min.js" charset="utf-8"></script></head><body><div id="container"><input type="file" id="files" name="files[]" single=""><select name="selectfile" id="selectfile" hidden="true"></select><input type="submit" id="upload" value="Draw Map" disabled="true"><div id="map"></div><div id="tooltip"></div></div><script type="text/javascript">
       var decodedShapeFile;
       var startTime;
       var width;  // width of the map canvas
@@ -248,6 +229,4 @@
           d3.select("#selectfile").selectAll("option").remove();
           document.getElementById("selectfile").hidden = true;
         }
-     </script>
-  </body>
-</html>
+     </script></body></html>

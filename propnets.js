@@ -35,7 +35,7 @@ var PropNets = (function(d3) {
 
   /* MAP COLOURS */
   var basecolour = '#f7d1ad';
-  var colourgradient = ['rgb(255,245,240)', 'rgb(254,224,210)', 'rgb(252,187,161)', 'rgb(252,146,114)', 'rgb(251,106,74)', 'rgb(239,59,44)', 'rgb(203,24,29)', 'rgb(165,15,21)', 'rgb(103,0,13)'];
+  var colourgradient;// = ['rgb(255,245,240)', 'rgb(254,224,210)', 'rgb(252,187,161)', 'rgb(252,146,114)', 'rgb(251,106,74)', 'rgb(239,59,44)', 'rgb(203,24,29)', 'rgb(165,15,21)', 'rgb(103,0,13)'];
   var gradientMapper;
   var lineSegmentColour = '#000';
 
@@ -49,6 +49,15 @@ var PropNets = (function(d3) {
   var totalDuration = 30000; // Total duration of the animation. Default = 30 secs
   var segmentDuration = 5000; // Duration of the animation of a single segment. Default = 5 secs
   var regionDuration = 500; // Duration of the animation of a region colouring. Default = 500 ms
+  var strokeWidth = 2; // Width of the animted line segmens. Default = 2 px
+  var strokeLength = 50; // Length of the animted line segmens. Default = 50 px
+  var maxLengthChecked = false;
+
+  /* GOOGLE MAP */
+  var gmap;
+  var gmapLat, gmapLng;
+  var gmapEnabled = false;
+  var opacity;
 
   MOD.setData = function(data) {
     flowdata = data;
@@ -67,7 +76,7 @@ var PropNets = (function(d3) {
     drawMapDOM = document.getElementById(u);
     selectfileDOM = document.getElementById(s);
 
-    basecolour = colourgradient[0]; // initialize the base colour to the lightest colour in the colour gradient
+    //basecolour = colourgradient[0]; // initialize the base colour to the lightest colour in the colour gradient
 
     filesDOM.addEventListener('change', function(evt) {
       readShapeFile();
@@ -95,7 +104,6 @@ var PropNets = (function(d3) {
         for (var key in mapfile.features[0].properties) {
           currentMapProperties.push(key);
         }
-        console.log(currentMapProperties);
 
         locationNames = [];
         var nameSchemeSelect = document.getElementById('selectnamingscheme');
@@ -113,7 +121,6 @@ var PropNets = (function(d3) {
         }
 
         currentNameScheme = nameSchemeSelect.options.length > 0 ? nameSchemeSelect.options[0].value : null; // CHECK: if having problems drawing maps without 'names'
-        console.log(currentNameScheme);
 
         // console.log(locationNames);
         currentMap = mapfile.fileName.charAt(mapfile.fileName.length - 1) - '0';
@@ -192,9 +199,11 @@ var PropNets = (function(d3) {
     width = $(window).width() - 17;
     height = $(window).height() - header.clientHeight - 5;
 
-    svgMap = d3.select('#map').select('svg').remove();
+    d3.select('#mainmap').remove();
+    d3.select('#container').append('div').attr('id', 'mainmap');
+    svgMap = d3.select('#mainmap').select('svg').remove();
 
-    svgMap = d3.select('#map').append('svg')
+    svgMap = d3.select('#mainmap').append('svg')
       .attr('width', width)
       .attr('height', height);
 
@@ -224,25 +233,25 @@ var PropNets = (function(d3) {
 
     g = svgMap.append('g');
 
-    //   hover = function(d) {
-    //       var bbox = path.bounds(d);
-    //       var centroid = path.centroid(d);
-    //
-    //       var div = document.getElementById('tooltip');
-    //
-    //       div.style.left = centroid[0] +'px';
-    //       div.style.top = centroid[1] + 'px';
-    //
-    //       div.innerHTML = d.properties.NAME_1;
-    //       console.log(d.properties.NAME_1);
-    //   };
     var tip = setupToolTips();
 
     svgMap.call(zoom);
     g.call(tip);
 
     //'#' + ((1 << 24) * Math.random() | 0).toString(16);
-    g.selectAll('path').data(json.features).enter().append('path')
+    appendPathData();
+    g.selectAll('path')
+      .on('mouseover', tip.show)
+      .on('mouseout', tip.hide);
+
+
+    var endTime = new Date().getTime();
+    console.log('drawing complete: ' + ((endTime - startTime) / 1000.0) + ' s elapsed');
+  }
+  // ---------------------------- END OF DRAW MAP FUNCTION -------------------------------------
+
+  function appendPathData() {
+    g.selectAll('path').data(currentMapJSON.features).enter().append('path')
       .attr('d', path)
       .attr('class', function(d) {
         return 'subunit ' + (currentNameScheme == null ? '' : d.properties[currentNameScheme].toLowerCase());
@@ -253,14 +262,10 @@ var PropNets = (function(d3) {
       .style('fill', basecolour)
       .style('stroke-width', '1')
       .style('stroke', 'black')
-      .style('vector-effect', 'non-scaling-stroke')
-      .on('mouseover', tip.show)
-      .on('mouseout', tip.hide);
-
-    var endTime = new Date().getTime();
-    console.log('drawing complete: ' + ((endTime - startTime) / 1000.0) + ' s elapsed');
+      .style('vector-effect', 'non-scaling-stroke');
+    // .on('mouseover', tip.show)
+    // .on('mouseout', tip.hide);
   }
-  // ---------------------------- END OF DRAW MAP FUNCTION -------------------------------------
 
   function setupToolTips() {
     var tip = d3.tip().attr('class', 'd3-tip')
@@ -288,6 +293,8 @@ var PropNets = (function(d3) {
   function addLegend() {
     var legendRectSize = 20;
     var legendSpacing = 4;
+
+    svgMap.selectAll('.legend').remove(); // Remove any previous legends, before adding the new one
 
     var legend = svgMap.selectAll('.legend')
       .data(gradientMapper.range())
@@ -325,20 +332,31 @@ var PropNets = (function(d3) {
       });
   }
 
+  //------------------------------------ VISUALIZE FUNCTION --------------------------------------------
+
   MOD.visualize = function() {
     if (flowdata == null) {
-      alert('No data available for visualizing. Please add a data file');
+      alert('No flow data available for visualizing. Please add a flow data file');
       return;
     }
 
-    console.log("flowdata: " + flowdata.length);
+    if (csvdata == null) {
+      alert('Please add/confirm a network layout file');
+      return;
+    }
+
+    /* Remove any left over effects from the previous animation */
+    g.selectAll('line').remove();
+    g.selectAll('path').style('fill', basecolour);
+
     var baseTime = Date.parse(flowdata[0].timestamp); // timestamp of the first record
     var maxTime = Date.parse(flowdata[flowdata.length - 1].timestamp); // timestamp of the last record
 
     maxweight = getMaxWeight(); // retrieve the maximum weight in the network before using it
-    gradientMapper = d3.scale.quantize().domain([0, maxweight]).range(colourgradient);
-    // var gradientUnitSize = maxweight / colourgradient.length; // divide the range of weights in to the number of colours in the gradient
-    addLegend();
+    gradientMapper = d3.scale.quantize().domain([0, maxweight]).range(colourgradient); // Get the function which maps the weight to a colour
+
+    addLegend(); // Legend is dependent on the gradientMapper
+
     for (var i = 0; i < flowdata.length; i++) {
       var relativeTime = Date.parse(flowdata[i].timestamp) - baseTime;
       var src = getDatumByName(flowdata[i].source);
@@ -364,6 +382,8 @@ var PropNets = (function(d3) {
     }
   };
 
+  //-------------------------- END OF VISUALIZE FUNCTION ----------------------------------------------------
+
   function animateRegionColouring(region, colour, relativeTime, maxTime, baseTime) {
     d3.select('[name=\"' + region.toLowerCase() + '\"]')
       .transition()
@@ -371,7 +391,6 @@ var PropNets = (function(d3) {
       .delay(relativeTime / (maxTime - baseTime) * totalDuration)
       .ease('linear')
       .style('fill', colour);
-    console.log(totalDuration);
   }
 
   function connectLocations(src, dest, delay) {
@@ -380,7 +399,7 @@ var PropNets = (function(d3) {
 
     var connector = g.append('line')
       .style('stroke', lineSegmentColour)
-      .style('stroke-width', '2px')
+      .style('stroke-width', strokeWidth + 'px')
       .attr('x1', centroid1[0])
       .attr('y1', centroid1[1])
       .attr('x2', centroid2[0])
@@ -392,8 +411,8 @@ var PropNets = (function(d3) {
       })
       .on('mouseout', function() {
         var line = d3.select(this);
-        line.style('stroke', 'red')
-          .style('stroke-width', '3px');
+        line.style('stroke', lineSegmentColour)
+          .style('stroke-width', strokeWidth);
       });
 
     // console.log(connector);
@@ -402,15 +421,31 @@ var PropNets = (function(d3) {
     var totalLength = Math.sqrt(xdif * xdif + ydif * ydif);
     // console.log('total line length: ' + totalLength);
 
+    setupAnimation(connector, totalLength, delay);
+  }
+
+  function setupAnimation(connector, totalLength, delay) {
+    var dashLength, factor, factor2;
+
+    if (maxLengthChecked) {
+      dashLength = totalLength;
+      factor = 1;
+      factor2 = 0;
+    } else {
+      dashLength = strokeLength;
+      factor = 0;
+      factor2 = 2;
+    }
+
     connector
-      .attr('stroke-dasharray', 50 + ' ' + totalLength)
-      .attr('stroke-dashoffset', (totalLength + 100))
+      .attr('stroke-dasharray', dashLength + ' ' + totalLength)
+      .attr('stroke-dashoffset', (totalLength + dashLength * factor2))
       .transition()
       .duration(segmentDuration)
       .delay(delay)
-      .attr('stroke-dashoffset', (totalLength + 100))
+      .attr('stroke-dashoffset', (totalLength + dashLength * factor2))
       .ease('linear')
-      .attr('stroke-dashoffset', -totalLength);
+      .attr('stroke-dashoffset', -totalLength + factor * totalLength);
   }
 
   // DATA VISUALIZATION PART
@@ -440,7 +475,6 @@ var PropNets = (function(d3) {
             var key = csvdata[i].location1.toLowerCase() + ':' + csvdata[i].location2.toLowerCase();
             networklayout[key] = csvdata[i].weight;
           }
-          console.log(networklayout);
         } else {
           flowdata = temp;
         }
@@ -510,7 +544,6 @@ var PropNets = (function(d3) {
       if (networklayout[key] > max)
         max = networklayout[key];
     }
-    console.log('max: ' + max);
     return max;
   }
 
@@ -530,7 +563,11 @@ var PropNets = (function(d3) {
 
     basecolour = evt.target.value;
     g.selectAll('path').style('fill', basecolour);
-    console.log(basecolour);
+  }
+
+  MOD.changeColourGradient = function changeColourGradient(d) {
+    colourgradient = d.value[9];
+    console.log(d.value[9]);
   }
 
   MOD.changeLineSegmentColour = function changeLineSegmentColour(evt) {
@@ -542,8 +579,114 @@ var PropNets = (function(d3) {
   }
 
   MOD.changeTotalDuration = function changeTotalDuration(evt) {
-    totalDuration = parseInt(evt.target.value) * 1000; // Multiply by a factor of 1000 since we are using ms 
-    console.log('Duration: ' +totalDuration);
+    totalDuration = parseInt(evt.target.value) * 1000; // Multiply by a factor of 1000 since we are using ms
+    console.log('Duration: ' + totalDuration);
   }
+
+  MOD.changeSegmentDuration = function changeSegmentDuration(evt) {
+    segmentDuration = parseInt(evt.target.value) * 1000; // Multiply by a factor of 1000 since we are using ms
+  }
+
+  MOD.changeStrokeWidth = function changeStrokeWidth(evt) {
+    strokeWidth = parseInt(evt.target.value);
+    g.selectAll('line').style('stroke-width', strokeWidth);
+  }
+
+  MOD.changeStrokeLength = function changeStrokeLength(evt) {
+    strokeLength = parseInt(evt.target.value);
+  }
+
+  MOD.changeOpacity = function changeOpacity(evt) {
+    opacity = evt.target.value / 100;
+    svgMap.attr('opacity', opacity);
+  }
+
+  MOD.useMaxLength = function useMaxLength(isUsed) {
+    maxLengthChecked = isUsed;
+  }
+
+  MOD.enableGoogleMap = function enableGoogleMap(x) {
+    if (gmap == null)
+      gmap = x;
+
+    gmapEnabled = true;
+    gmap.resize();
+
+    var b = path.bounds(currentMapJSON);
+
+    //calculate the center of the bounding box of the map
+    var center = [(b[1][0] - b[0][0]) / 2 + b[0][0], (b[1][1] - b[0][1]) / 2 + b[0][1]];
+
+    // Get the latitude, longitude values of the center point
+    var latLng = projection.invert(center);
+
+    console.log(center);
+    console.log(latLng);
+    gmap.latitude = latLng[1];
+    gmap.longitude = latLng[0];
+
+    var topleft = projection.invert(b[0]);
+    var bottomright = projection.invert(b[1]);
+    console.log(topleft);
+    console.log(bottomright);
+
+    var bounds = new google.maps.LatLngBounds();
+    bounds.extend(new google.maps.LatLng(topleft[1], topleft[0]));
+    bounds.extend(new google.maps.LatLng(bottomright[1], bottomright[0]));
+    gmap.map.fitBounds(bounds);
+
+    drawOverlay();
+  }
+
+  MOD.disableGoogleMap = function disableGoogleMap() {
+    gmapEnabled = false;
+    drawMap(currentMapJSON);
+  }
+
+  function drawOverlay() {
+    var overlay = new google.maps.OverlayView();
+    svgMap = d3.select('#mainmap').select('svg').remove();
+    d3.select('#mainmap').remove();
+
+    // document.getElementById('mainmap').style.visibility = 'hidden';
+    overlay.onAdd = function() {
+      console.log(this.getPanes().overlayLayer);
+      var layer = d3.select(this.getPanes().overlayLayer).append("div").attr("class", "SvgOverlay").attr('id', 'mainmap');
+      console.log(layer);
+      svgMap = layer.append("svg")
+        .attr('width', width)
+        .attr('height', height)
+        .attr('opacity', opacity);
+
+      var adminDivisions = svgMap.append("g"); //.attr("class", "AdminDivisions");
+
+      overlay.draw = function() {
+        var markerOverlay = this;
+        var overlayProjection = markerOverlay.getProjection();
+
+        // Turn the overlay projection into a d3 projection
+        var googleMapProjection = function(coordinates) {
+          var googleCoordinates = new google.maps.LatLng(coordinates[1], coordinates[0]);
+          var pixelCoordinates = overlayProjection.fromLatLngToDivPixel(googleCoordinates);
+          return [pixelCoordinates.x + 4000, pixelCoordinates.y + 4000];
+        }
+        projection = googleMapProjection;
+        path = d3.geo.path().projection(googleMapProjection);
+        g = adminDivisions;
+        appendPathData();
+      };
+
+    };
+
+    overlay.setMap(gmap.map);
+  }
+
+  function googleProjection(prj) {
+    return function(lnglat) {
+      ret = prj.fromLatLngToDivPixel(new google.maps.LatLng(lnglat[1], lnglat[0]))
+      return [ret.x, ret.y]
+    };
+  }
+
   return MOD;
 }(window.d3));
